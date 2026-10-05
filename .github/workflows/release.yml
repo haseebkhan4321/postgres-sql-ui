@@ -52,6 +52,9 @@ jobs:
       - name: Build postadmin.exe
         run: npm run build:exe
 
+      - name: Build launcher
+        run: npm run build:launcher
+
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 

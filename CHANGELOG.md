@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- Launcher window that replaces the console window. It has a glowing Start/Stop button, the server address, an **Open in browser** button, a short log, and a PSQL logo.
+- System tray icon with a status dot. Its menu has Open in browser, Start/Stop, Show window, Start with Windows, and Exit. Closing the window keeps PostAdmin running in the tray.
+- PSQL app icon for the launcher, installer, and shortcuts.
+- `npm run build:launcher`.
+
+### Changed
+- The installer now installs the launcher as `PostAdmin.exe` and moves the server to `server\postadmin.exe`. Uninstalling also removes the Start with Windows entry.
+
 ## [1.2.0] - 2026-10-05
 
 ### Added

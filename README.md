@@ -8,13 +8,21 @@ PostAdmin is a phpMyAdmin-style manager for PostgreSQL that runs on your own com
 2. Download **`PostAdmin-Setup-X.Y.Z.exe`** and run it. You don't need Node.js or admin rights. By default it installs for your user only, and it can install for all users if you choose that.
 3. The wizard adds a **PostAdmin** Start-menu shortcut, and a desktop icon if you tick that option. It can also start PostAdmin when it finishes.
 
-When you start PostAdmin it opens in your browser. It also opens a console window, which is the server. Closing that window stops PostAdmin.
+### The launcher
+
+Starting PostAdmin opens a small launcher window. It starts the server, then opens PostAdmin in your browser.
+
+- The big round button starts and stops the server. It glows blue when the server is stopped, amber while it's starting, and green while it's running.
+- **Open in browser** (or the address under the button) opens the UI. A short log shows what the server printed.
+- Closing the window doesn't stop PostAdmin. It keeps running in the **system tray**, like Laragon. On Windows 11, click the **^** arrow next to the clock to see the icon, or drag it onto the taskbar to keep it visible. The icon's dot is green while the server runs.
+- Click the tray icon to bring the window back. Right-click it for **Open in browser**, **Start/Stop server**, **Start with Windows** (starts in the tray at login) and **Exit**. **Exit** stops the server.
+- Starting PostAdmin again while it's already running just brings up the existing window.
 
 If Windows SmartScreen says "Windows protected your PC", click **More info**, then **Run anyway**. This happens because the installer isn't code-signed.
 
 - **Update:** when a newer release is on GitHub, PostAdmin shows a banner at the top of the page with a **Download** link. Run the new setup over the old one. It replaces the old version and keeps your connections. If you dismiss the banner, it stays hidden until the next version comes out. The check runs at most every 6 hours, and nothing happens if you're offline. Set `POSTADMIN_NO_UPDATE_CHECK=1` to turn it off.
 - **Uninstall:** use *Settings → Apps → PostAdmin*, or the *Uninstall PostAdmin* shortcut. Your saved connections and history in `%APPDATA%\PostAdmin\` are kept. Delete that folder if you want them gone too.
-- **Portable:** the same release also includes `postadmin.exe`, a single file you can run from anywhere without installing it.
+- **Portable:** the same release also includes `postadmin.exe`, a single file you can run from anywhere without installing it. It runs in a console window, without the launcher.
 
 ## Run from source
 
@@ -93,12 +101,15 @@ After every push to `master`, the [Release workflow](.github/workflows/release.y
 
 ## Building the installer locally
 
-You need [Inno Setup 6](https://jrsoftware.org/isdl.php) installed.
+You need [Inno Setup 6](https://jrsoftware.org/isdl.php) installed. The launcher is built with the C# compiler that comes with Windows (.NET Framework 4.x), so it needs nothing extra.
 
 ```sh
-npm run build:exe        # dist/postadmin.exe (standalone, bundles Node)
+npm run build:exe        # dist/postadmin.exe (standalone server, bundles Node)
+npm run build:launcher   # dist/PostAdmin-Launcher.exe (from launcher/Launcher.cs)
 npm run build:installer  # dist/PostAdmin-Setup-X.Y.Z.exe (from installer/postadmin.iss)
-npm run build:all        # both, in order
+npm run build:all        # all three, in order
 ```
+
+The installer puts the launcher in the install folder as `PostAdmin.exe` and the server in `server\postadmin.exe`. To try the launcher without installing, run `dist/PostAdmin-Launcher.exe`. It finds `postadmin.exe` in the same folder. The icon is `launcher/postadmin.ico`, and `launcher/make-icon.ps1` regenerates it.
 
 The build script looks for `ISCC.exe` in the usual Inno Setup folders. If it's somewhere else, set `ISCC` to its full path. The installer version is read from `package.json`.

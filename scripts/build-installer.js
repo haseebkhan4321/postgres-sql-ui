@@ -1,5 +1,5 @@
 // Compiles installer/postadmin.iss into dist/PostAdmin-Setup-<version>.exe.
-// Expects dist/postadmin.exe to exist (run `npm run build:exe` first).
+// Expects dist/postadmin.exe and dist/PostAdmin-Launcher.exe (npm run build:exe, build:launcher).
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -17,9 +17,11 @@ function findIscc() {
   return candidates.find(p => fs.existsSync(p)) || 'ISCC.exe';
 }
 
-if (!fs.existsSync(path.join(ROOT, 'dist', 'postadmin.exe'))) {
-  console.error('dist/postadmin.exe not found. Run `npm run build:exe` first.');
-  process.exit(1);
+for (const [file, script] of [['postadmin.exe', 'build:exe'], ['PostAdmin-Launcher.exe', 'build:launcher']]) {
+  if (!fs.existsSync(path.join(ROOT, 'dist', file))) {
+    console.error(`dist/${file} not found. Run \`npm run ${script}\` first.`);
+    process.exit(1);
+  }
 }
 
 try {

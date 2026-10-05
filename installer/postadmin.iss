@@ -6,7 +6,8 @@
 #endif
 
 #define AppName "PostAdmin"
-#define AppExe "postadmin.exe"
+; The launcher (window + tray icon); it runs the server from server\postadmin.exe.
+#define AppExe "PostAdmin.exe"
 #define AppUrl "https://github.com/haseebkhan4321/postgres-sql-ui"
 
 [Setup]
@@ -34,6 +35,7 @@ UninstallDisplayName={#AppName} {#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\launcher\postadmin.ico
 ; Stop a running PostAdmin before files are replaced or removed.
 CloseApplications=force
 
@@ -44,7 +46,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\dist\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\PostAdmin-Launcher.exe"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignoreversion
+Source: "..\dist\postadmin.exe"; DestDir: "{app}\server"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
@@ -57,7 +60,12 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+; Remove the "Start with Windows" entry the launcher may have added.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "PostAdmin"; Flags: dontcreatekey uninsdeletevalue
+
 [UninstallRun]
+; The launcher and the server share the image name, so this stops both.
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#AppExe}"; Flags: runhidden; RunOnceId: "StopPostAdmin"
 
 ; Saved connections and history in %APPDATA%\PostAdmin are left in place on uninstall.
