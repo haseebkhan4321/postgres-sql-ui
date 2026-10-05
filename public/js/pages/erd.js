@@ -306,11 +306,11 @@ export async function render(ctx, el) {
   });
 
   // Toolbar
-  const search = h('input', { type: 'search', placeholder: 'Find table…', style: { width: '180px' } });
+  const search = h('input', { type: 'search', placeholder: 'Find table…', style: { width: '140px' } });
   const keysBox = h('input', { type: 'checkbox', checked: keysOnly });
-  const zoomLabel = h('span', { class: 'muted small', style: { minWidth: '42px', textAlign: 'right' } });
+  const zoomLabel = h('span', { class: 'muted small', style: { minWidth: '36px', textAlign: 'center' } });
   const stats = h('span', { class: 'muted' });
-  const fsBtn = h('button', { title: 'Fullscreen (Esc to exit)', onclick: () => toggleFullscreen() }, '⛶ Fullscreen');
+  const fsBtn = h('button', { title: 'Fullscreen (Esc to exit)', 'aria-label': 'Fullscreen', onclick: () => toggleFullscreen() }, '⛶');
   const queryBanner = h('div', { class: 'erd-query-banner', style: { display: 'none' } });
   const wrap = h('div', { class: 'erd-wrap' });
   el.append(wrap);
@@ -323,14 +323,14 @@ export async function render(ctx, el) {
       search,
       h('label', { class: 'inline' }, keysBox, 'keys only'),
       h('button', { title: 'Re-arrange all tables', onclick: () => { autoLayout(model.nodes, model.edges); persist(); draw(); fit(); } }, 'Auto layout'),
+      h('button', { onclick: () => fit() }, 'Fit'),
+      fsBtn,
       h('button', { title: 'Zoom out', onclick: () => zoomBy(1 / 1.2) }, '−'),
       zoomLabel,
       h('button', { title: 'Zoom in', onclick: () => zoomBy(1.2) }, '+'),
-      h('button', { onclick: () => fit() }, 'Fit'),
-      fsBtn,
       exportMenu()),
     h('div', { class: 'muted small', style: { marginBottom: '6px' } },
-      'Drag tables to arrange them (positions are remembered) · drag the background to pan · scroll to zoom · double-click a table to open it · hover a table to highlight its relations'),
+      'Drag tables to arrange them (positions are remembered) · drag the background or scroll with two fingers to pan · pinch or Ctrl+scroll to zoom · double-click a table to open it · hover a table to highlight its relations'),
     queryBanner);
 
   const svg = s('svg', { class: 'erd', width: '100%', height: '100%', 'font-family': '"Segoe UI", Roboto, Arial, sans-serif', 'font-size': 12 });
@@ -454,10 +454,26 @@ export async function render(ctx, el) {
     persist();
   }
 
+  // Two-finger touchpad scroll pans; pinch (reported as ctrl+wheel) or
+  // Ctrl+mouse wheel zooms. Shift+wheel pans horizontally for mouse users.
+  let wheelSave = null;
   svg.addEventListener('wheel', ev => {
     ev.preventDefault();
-    const r = svg.getBoundingClientRect();
-    zoomBy(ev.deltaY < 0 ? 1.12 : 1 / 1.12, ev.clientX - r.left, ev.clientY - r.top);
+    const unit = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? host.clientHeight : 1;
+    let dx = ev.deltaX * unit;
+    let dy = ev.deltaY * unit;
+    if (ev.ctrlKey || ev.metaKey) {
+      const r = svg.getBoundingClientRect();
+      const f = Math.exp(-Math.max(-50, Math.min(50, dy)) * 0.01);
+      zoomBy(f, ev.clientX - r.left, ev.clientY - r.top);
+      return;
+    }
+    if (ev.shiftKey && !dx) [dx, dy] = [dy, 0];
+    view.x -= dx;
+    view.y -= dy;
+    applyView();
+    clearTimeout(wheelSave);
+    wheelSave = setTimeout(persist, 250);
   }, { passive: false });
 
   // --- dragging & panning ----------------------------------------------------
@@ -644,7 +660,9 @@ export async function render(ctx, el) {
   const onFullscreen = () => {
     if (!wrap.isConnected) return document.removeEventListener('fullscreenchange', onFullscreen);
     const on = document.fullscreenElement === wrap;
-    fsBtn.textContent = on ? '✕ Exit fullscreen' : '⛶ Fullscreen';
+    fsBtn.textContent = on ? '✕' : '⛶';
+    fsBtn.title = on ? 'Exit fullscreen (Esc)' : 'Fullscreen (Esc to exit)';
+    fsBtn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Fullscreen');
     requestAnimationFrame(() => fit());
   };
   document.addEventListener('fullscreenchange', onFullscreen);
