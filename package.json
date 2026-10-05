@@ -8,6 +8,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js --no-open",
     "build:exe": "pkg . --targets node22-win-x64 --output dist/postadmin.exe",
+    "build:installer": "node scripts/build-installer.js",
+    "build:all": "npm run build:exe && npm run build:installer",
     "release:patch": "npm version patch -m \"chore(release): v%s\"",
     "release:minor": "npm version minor -m \"chore(release): v%s\"",
     "release:major": "npm version major -m \"chore(release): v%s\"",

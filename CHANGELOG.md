@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- Windows installer (`PostAdmin-Setup-X.Y.Z.exe`, built with Inno Setup). It installs per-user without admin rights and adds Start-menu and optional desktop shortcuts, an uninstaller, and a "launch when finished" option. Saved connections are kept on update and uninstall.
+- GitHub Actions release workflow. Pushing a `vX.Y.Z` tag builds the installer and the portable `postadmin.exe` and attaches both to a GitHub Release.
+- `npm run build:installer` and `npm run build:all` scripts.
+- MIT `LICENSE` file.
+
 ## [1.1.0] - 2026-10-05
 
 ### Added

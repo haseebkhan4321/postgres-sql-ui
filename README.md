@@ -2,13 +2,26 @@
 
 PostAdmin is a phpMyAdmin-style manager for PostgreSQL that runs on your own computer. Paste a `postgres://` URI and it saves the connection locally. It then opens a web UI in your browser where you can browse, query, edit, import, and export data.
 
-## Run
+## Install (Windows)
+
+1. Go to the [latest release](https://github.com/haseebkhan4321/postgres-sql-ui/releases/latest).
+2. Download **`PostAdmin-Setup-X.Y.Z.exe`** and run it. You don't need Node.js or admin rights. By default it installs for your user only, and it can install for all users if you choose that.
+3. The wizard adds a **PostAdmin** Start-menu shortcut, and a desktop icon if you tick that option. It can also start PostAdmin when it finishes.
+
+When you start PostAdmin it opens in your browser. It also opens a console window, which is the server. Closing that window stops PostAdmin.
+
+If Windows SmartScreen says "Windows protected your PC", click **More info**, then **Run anyway**. This happens because the installer isn't code-signed.
+
+- **Update:** run the newer setup. It replaces the old version and keeps your connections.
+- **Uninstall:** use *Settings → Apps → PostAdmin*, or the *Uninstall PostAdmin* shortcut. Your saved connections and history in `%APPDATA%\PostAdmin\` are kept. Delete that folder if you want them gone too.
+- **Portable:** the same release also includes `postadmin.exe`, a single file you can run from anywhere without installing it.
+
+## Run from source
 
 | How | Command |
 | --- | --- |
 | Double-click | `start.bat` (installs dependencies the first time) |
 | Terminal | `npm install` then `npm start` |
-| Standalone exe | `npm run build:exe` builds `dist/postadmin.exe`, which needs no Node install |
 
 The server listens on `http://127.0.0.1:7070`, or the next free port, and opens your browser. You can control it with these settings:
 
@@ -75,3 +88,17 @@ npm run release:major   # breaking changes          1.0.0 -> 2.0.0
 ```
 
 Each command updates `package.json`, commits, creates a `vX.Y.Z` git tag, and pushes the commit and the tag.
+
+When the tag is pushed, the [Release workflow](.github/workflows/release.yml) runs on GitHub Actions. It builds `postadmin.exe` and `PostAdmin-Setup-X.Y.Z.exe` on Windows and publishes a GitHub Release with both files attached. The release notes come from that version's section in the changelog. You can watch the build in the repository's **Actions** tab.
+
+## Building the installer locally
+
+You need [Inno Setup 6](https://jrsoftware.org/isdl.php) installed.
+
+```sh
+npm run build:exe        # dist/postadmin.exe (standalone, bundles Node)
+npm run build:installer  # dist/PostAdmin-Setup-X.Y.Z.exe (from installer/postadmin.iss)
+npm run build:all        # both, in order
+```
+
+The build script looks for `ISCC.exe` in the usual Inno Setup folders. If it's somewhere else, set `ISCC` to its full path. The installer version is read from `package.json`.
