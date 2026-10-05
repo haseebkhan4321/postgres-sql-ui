@@ -99,6 +99,19 @@ Each command updates `package.json`, commits, creates a `vX.Y.Z` git tag, and pu
 
 After every push to `master`, the [Release workflow](.github/workflows/release.yml) checks the version in `package.json`. If GitHub has no `vX.Y.Z` tag for it yet, the workflow builds `postadmin.exe` and `PostAdmin-Setup-X.Y.Z.exe` on Windows, then publishes a GitHub Release with both files attached and creates the tag. The release notes come from that version's section in the changelog. Tags don't have to be pushed, so pushing from GitHub Desktop works. If the push step of a `release:*` script fails, push the commit with Desktop instead. You can watch the build in the repository's **Actions** tab.
 
+## Code signing
+
+Releases are set up for free signing through [SignPath Foundation](https://signpath.org). [CODE_SIGNING.md](CODE_SIGNING.md) is the project's code signing policy. The Release workflow signs the launcher and then the installer, but only once these are configured in the repository settings:
+
+| Setting (Settings → Secrets and variables → Actions) | Kind | Value |
+| --- | --- | --- |
+| `SIGNPATH_API_TOKEN` | Secret | API token of the SignPath CI user (submitter permission) |
+| `SIGNPATH_ORGANIZATION_ID` | Variable | SignPath organization ID |
+| `SIGNPATH_PROJECT_SLUG` | Variable | SignPath project slug |
+| `SIGNPATH_SIGNING_POLICY_SLUG` | Variable | e.g. `release-signing` |
+
+The SignPath project needs two artifact configurations, with the slugs `launcher` and `installer`. Their contents are in [.signpath/artifact-configurations/](.signpath/artifact-configurations/). Until `SIGNPATH_ORGANIZATION_ID` is set, releases are built unsigned.
+
 ## Building the installer locally
 
 You need [Inno Setup 6](https://jrsoftware.org/isdl.php) installed. The launcher is built with the C# compiler that comes with Windows (.NET Framework 4.x), so it needs nothing extra.

@@ -55,11 +55,57 @@ jobs:
       - name: Build launcher
         run: npm run build:launcher
 
+      # Code signing via SignPath (see CODE_SIGNING.md). Skipped until the SIGNPATH_ORGANIZATION_ID
+      # repository variable is set. Each signing request waits for manual approval in SignPath.
+      - name: Upload unsigned launcher
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: upload-launcher
+        uses: actions/upload-artifact@v7
+        with:
+          name: launcher-unsigned
+          path: dist/PostAdmin-Launcher.exe
+
+      - name: Sign launcher
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: launcher
+          github-artifact-id: ${{ steps.upload-launcher.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
+
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Build installer
         run: npm run build:installer
+
+      - name: Upload unsigned installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: upload-installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-unsigned
+          path: dist/PostAdmin-Setup-*.exe
+
+      - name: Sign installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist
 
       - name: Collect release notes from CHANGELOG.md
         shell: bash

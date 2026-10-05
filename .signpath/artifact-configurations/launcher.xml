@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration "launcher": paste into the SignPath project.
+     The GitHub artifact is a zip containing PostAdmin-Launcher.exe. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="PostAdmin-Launcher.exe" product-name="PostAdmin">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>
