@@ -86,11 +86,11 @@ namespace PostAdminLauncher
 
         public bool Running { get { return proc != null && !proc.HasExited; } }
 
-        public void Start(string exe)
+        public void Start(string exe, string args)
         {
             if (Running) return;
             stopping = false;
-            var psi = new ProcessStartInfo(exe, "--no-open");
+            var psi = new ProcessStartInfo(exe, args);
             psi.UseShellExecute = false;
             psi.CreateNoWindow = true;
             psi.RedirectStandardOutput = true;
@@ -513,21 +513,36 @@ namespace PostAdminLauncher
             try { BeginInvoke(a); } catch (InvalidOperationException) { }
         }
 
-        static string FindServerExe()
+        // Installed layout: server\node.exe (the official, signed Node build, so Smart App Control allows it)
+        // running server\app\src\server.js. Falls back to a pkg-built postadmin.exe next to the launcher (dev builds).
+        static bool FindServer(out string exe, out string args)
         {
             string dir = AppDomain.CurrentDomain.BaseDirectory;
+            string node = Path.Combine(dir, "server", "node.exe");
+            string script = Path.Combine(dir, "server", "app", "src", "server.js");
+            if (File.Exists(node) && File.Exists(script))
+            {
+                exe = node;
+                args = "\"" + script + "\" --no-open";
+                return true;
+            }
             string self = Path.GetFullPath(Application.ExecutablePath);
             string[] candidates =
             {
                 Path.Combine(dir, "server", "postadmin.exe"),
-                Path.Combine(dir, "postadmin-server.exe"),
                 Path.Combine(dir, "postadmin.exe"),
             };
             foreach (string c in candidates)
             {
-                if (File.Exists(c) && !string.Equals(Path.GetFullPath(c), self, StringComparison.OrdinalIgnoreCase)) return c;
+                if (File.Exists(c) && !string.Equals(Path.GetFullPath(c), self, StringComparison.OrdinalIgnoreCase))
+                {
+                    exe = c;
+                    args = "--no-open";
+                    return true;
+                }
             }
-            return null;
+            exe = args = null;
+            return false;
         }
 
         void Toggle()
@@ -538,10 +553,10 @@ namespace PostAdminLauncher
 
         void StartServer(bool openBrowser)
         {
-            string exe = FindServerExe();
-            if (exe == null)
+            string exe, args;
+            if (!FindServer(out exe, out args))
             {
-                AppendLog("Server executable not found next to the launcher (expected server\\postadmin.exe).");
+                AppendLog("Server not found next to the launcher (expected server\\node.exe). Try reinstalling PostAdmin.");
                 return;
             }
             openBrowserWhenReady = openBrowser;
@@ -549,12 +564,14 @@ namespace PostAdminLauncher
             AppendLog("Starting server...");
             try
             {
-                server.Start(exe);
+                server.Start(exe, args);
                 SetState(ServerState.Starting);
             }
             catch (Exception ex)
             {
                 AppendLog("Could not start the server: " + ex.Message);
+                if (ex.Message.IndexOf("Application Control", StringComparison.OrdinalIgnoreCase) >= 0)
+                    AppendLog("Windows Smart App Control blocked " + Path.GetFileName(exe) + ". Install PostAdmin with the setup from GitHub Releases.");
                 SetState(ServerState.Stopped);
             }
         }

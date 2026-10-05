@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-05
+
+### Fixed
+- The installed server was blocked on PCs with Windows Smart App Control turned on ("An Application Control policy has blocked this file"). The installer now ships the official signed `node.exe` from nodejs.org with the app files, instead of the unsigned pkg-built exe.
+- If Windows still blocks the server, the launcher log now explains why.
+
 ## [1.3.0] - 2026-10-05
 
 ### Added

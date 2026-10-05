@@ -47,10 +47,16 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\PostAdmin-Launcher.exe"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignoreversion
-Source: "..\dist\postadmin.exe"; DestDir: "{app}\server"; Flags: ignoreversion
+; Official signed node.exe + app files (staged by scripts/build-installer.js), so Smart App Control allows it.
+Source: "..\dist\stage\server\*"; DestDir: "{app}\server"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+; Older builds put a pkg-built server here; replace the whole app folder so no stale files remain.
+Type: files; Name: "{app}\server\postadmin.exe"
+Type: filesandordirs; Name: "{app}\server\app"
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"; Comment: "Start PostAdmin and open it in your browser"
