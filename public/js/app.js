@@ -191,5 +191,26 @@ api.get('/version').then(({ version }) => {
   document.getElementById('app-version').textContent = `v${version}`;
 }).catch(() => {});
 
+// Update banner: shown once per new version until dismissed.
+api.get('/update').then(u => {
+  if (!u.available) return;
+  let dismissed;
+  try { dismissed = localStorage.getItem('pa-update-dismissed'); } catch { /* storage unavailable */ }
+  if (dismissed === u.latest) return;
+  const banner = document.getElementById('update-banner');
+  banner.append(
+    h('span', null, h('strong', null, `PostAdmin ${u.latest} is available`), ` (you have ${u.current}).`),
+    h('a', { class: 'btn btn-primary', href: u.downloadUrl, target: '_blank', rel: 'noopener' }, 'Download'),
+    h('a', { href: u.releaseUrl, target: '_blank', rel: 'noopener' }, "What's new"),
+    h('button', {
+      class: 'icon-btn', title: 'Dismiss', onclick: () => {
+        banner.hidden = true;
+        try { localStorage.setItem('pa-update-dismissed', u.latest); } catch { /* storage unavailable */ }
+      },
+    }, '×'),
+  );
+  banner.hidden = false;
+}).catch(() => {});
+
 window.addEventListener('hashchange', render);
 render();

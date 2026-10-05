@@ -12,7 +12,7 @@ When you start PostAdmin it opens in your browser. It also opens a console windo
 
 If Windows SmartScreen says "Windows protected your PC", click **More info**, then **Run anyway**. This happens because the installer isn't code-signed.
 
-- **Update:** run the newer setup. It replaces the old version and keeps your connections.
+- **Update:** when a newer release is on GitHub, PostAdmin shows a banner at the top of the page with a **Download** link. Run the new setup over the old one. It replaces the old version and keeps your connections. If you dismiss the banner, it stays hidden until the next version comes out. The check runs at most every 6 hours, and nothing happens if you're offline. Set `POSTADMIN_NO_UPDATE_CHECK=1` to turn it off.
 - **Uninstall:** use *Settings → Apps → PostAdmin*, or the *Uninstall PostAdmin* shortcut. Your saved connections and history in `%APPDATA%\PostAdmin\` are kept. Delete that folder if you want them gone too.
 - **Portable:** the same release also includes `postadmin.exe`, a single file you can run from anywhere without installing it.
 

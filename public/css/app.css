@@ -82,6 +82,12 @@ h3 { font-size: 14px; margin: 18px 0 8px; font-weight: 600; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border);
 }
+#update-banner {
+  display: flex; align-items: center; gap: 12px; padding: 6px 16px; font-size: 13px;
+  background: var(--accent-soft); border-bottom: 1px solid var(--border);
+}
+#update-banner[hidden] { display: none; }
+#update-banner .icon-btn { margin-left: auto; }
 #breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 13px; }
 #breadcrumbs .sep { color: var(--muted); }
 #breadcrumbs .kind { color: var(--muted); font-size: 11px; text-transform: uppercase; margin-right: 2px; }

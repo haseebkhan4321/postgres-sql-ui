@@ -4,6 +4,7 @@ const path = require('path');
 const net = require('net');
 const { exec } = require('child_process');
 const store = require('./store');
+const { checkForUpdate } = require('./update');
 
 const HOST = '127.0.0.1';
 const START_PORT = parseInt(process.env.PORT, 10) || 7070;
@@ -28,6 +29,7 @@ app.use(express.static(path.join(ROOT, 'public')));
 
 const { version } = require('../package.json');
 app.get('/api/version', (req, res) => res.json({ version }));
+app.get('/api/update', async (req, res) => res.json(await checkForUpdate()));
 app.use('/api/connections', require('./routes/connections'));
 // Literal requires so the pkg bundler can see every route module.
 const connRoutes = [require('./routes/meta'), require('./routes/data'), require('./routes/query'), require('./routes/io'), require('./routes/ddl')];

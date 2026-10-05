@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 - Windows installer (`PostAdmin-Setup-X.Y.Z.exe`, built with Inno Setup). It installs per-user without admin rights and adds Start-menu and optional desktop shortcuts, an uninstaller, and a "launch when finished" option. Saved connections are kept on update and uninstall.
 - GitHub Actions release workflow. Pushing a `vX.Y.Z` tag builds the installer and the portable `postadmin.exe` and attaches both to a GitHub Release.
+- Update notifications. PostAdmin checks GitHub for the latest release and shows a dismissible banner with a download link when a newer version exists. Results are cached for 6 hours, and the check fails silently when offline. `POSTADMIN_NO_UPDATE_CHECK=1` turns it off.
 - `npm run build:installer` and `npm run build:all` scripts.
 - MIT `LICENSE` file.
 
