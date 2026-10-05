@@ -1,0 +1,40 @@
+{
+  "name": "postadmin",
+  "version": "1.0.0",
+  "description": "Local phpMyAdmin-style manager for PostgreSQL",
+  "main": "src/server.js",
+  "bin": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js --no-open",
+    "build:exe": "pkg . --targets node22-win-x64 --output dist/postadmin.exe",
+    "release:patch": "npm version patch -m \"chore(release): v%s\"",
+    "release:minor": "npm version minor -m \"chore(release): v%s\"",
+    "release:major": "npm version major -m \"chore(release): v%s\"",
+    "postversion": "git push --follow-tags"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*",
+      "node_modules/codemirror/lib/**/*",
+      "node_modules/codemirror/mode/sql/**/*",
+      "node_modules/codemirror/addon/**/*"
+    ]
+  },
+  "license": "MIT",
+  "dependencies": {
+    "codemirror": "^5.65.21",
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "pg": "^8.23.1",
+    "pg-connection-string": "^2.14.1",
+    "pg-copy-streams": "^7.0.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.23.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haseebkhan4321/postgres-sql-ui.git"
+  }
+}
