@@ -319,7 +319,7 @@ export async function render(ctx, el) {
       h('h2', { style: { margin: 0 } }, `ER diagram — ${scopeLabel}`),
       stats,
       h('span', { class: 'spacer' }),
-      h('button', { title: 'Open a SQL window; the tables your query uses light up here', onclick: () => openQueryWindow() }, '⧉ Query window'),
+      h('button', { title: 'Query window: open a SQL window; the tables your query uses light up here', 'aria-label': 'Query window', onclick: () => openQueryWindow() }, '⧉'),
       search,
       h('label', { class: 'inline' }, keysBox, 'keys only'),
       h('button', { title: 'Re-arrange all tables', onclick: () => { autoLayout(model.nodes, model.edges); persist(); draw(); fit(); } }, 'Auto layout'),
