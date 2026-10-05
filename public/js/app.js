@@ -85,6 +85,10 @@ let renderSeq = 0;
 async function render() {
   const seq = ++renderSeq;
   const ctx = parseHash();
+  // ?popup=1: a bare editor window opened from the ERD (no sidebar or tabs).
+  const popup = ctx.params.get('popup') === '1';
+  document.body.classList.toggle('popup', popup);
+  document.title = popup ? `SQL · ${ctx.db || 'PostAdmin'}` : 'PostAdmin';
   renderConnSelect(ctx);
 
   if (ctx.level === 'home') {

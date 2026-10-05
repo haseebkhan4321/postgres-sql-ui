@@ -57,6 +57,7 @@ The server only answers requests addressed to `127.0.0.1` or `localhost`. Other 
 - **ER diagram:**
   - An ERD tab on every database and schema draws the tables and their foreign keys. The layout is automatic, and you can drag tables to rearrange them (the positions are remembered).
   - Pan, zoom, search, a keys-only mode, and fullscreen.
+  - **Query window:** opens a separate SQL editor. As you type, the tables and columns your statement uses light up on the diagram, and the diagram reloads when you change the schema.
   - Download the diagram as **draw.io** (`.drawio`, which opens in diagrams.net), **SVG**, or **PNG**.
 
 SSL settings in the URI (`?sslmode=require`) are passed through. This lets hosted providers such as Neon, Supabase, and RDS work.

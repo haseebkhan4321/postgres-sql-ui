@@ -60,6 +60,7 @@ export async function render(ctx, el) {
   append(el,
     h('div', { class: 'toolbar' },
       h('h2', { style: { margin: 0 } }, 'Run SQL on ', h('code', null, db), ctx.schema ? [' / ', h('code', null, ctx.schema)] : null),
+      ctx.params.get('popup') ? h('span', { class: 'badge', title: 'Tables in the statement under your cursor light up in the ER diagram' }, '⇄ linked to ERD') : null,
       h('span', { class: 'spacer' }), statusLine),
     h('div', { class: 'sql-layout' },
       h('div', null, textarea),
@@ -90,7 +91,39 @@ export async function render(ctx, el) {
     try { localStorage.setItem(draftKey(ctx, db), editor.getValue()); } catch { /* ignore */ }
   });
 
+  // Tell any open ER diagram (other tabs/windows too) what we're working on, so it can highlight it.
+  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('postadmin-sql') : null;
+  let broadcastTimer;
+  const broadcast = () => {
+    clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(() => {
+      if (!textarea.isConnected && !el.isConnected) { channel?.close(); return; }
+      channel?.postMessage({ type: 'sql', connId: ctx.id, db, sql: focusedSql() });
+    }, 200);
+  };
+  if (channel) {
+    editor.on('change', broadcast);
+    editor.on('cursorActivity', broadcast);
+    channel.onmessage = ({ data: m }) => { if (m.type === 'erd-ready' && m.connId === ctx.id && m.db === db) broadcast(); };
+    broadcast();
+  }
+
   let errorMark;
+
+  // The selection, or else the statement under the cursor (statements split on ';').
+  function focusedSql() {
+    const sel = editor.getSelection();
+    if (sel.trim()) return sel;
+    const text = editor.getValue();
+    const cursor = editor.indexFromPos(editor.getCursor());
+    const parts = [];
+    let start = 0;
+    for (const m of text.matchAll(/;/g)) { parts.push([start, m.index + 1]); start = m.index + 1; }
+    parts.push([start, text.length]);
+    let i = parts.findIndex(([a, b]) => cursor >= a && cursor <= b);
+    while (i > 0 && !text.slice(...parts[i]).replace(/;/g, '').trim()) i--;
+    return i >= 0 ? text.slice(...parts[i]) : text;
+  }
 
   function currentSql() {
     const sel = editor.getSelection();
@@ -108,7 +141,9 @@ export async function render(ctx, el) {
       const res = await api.post(paths.db(ctx.id, db) + '/query', { sql: prefix + sql });
       statusLine.textContent = `${res.results.length} statement(s) · ${res.duration} ms`;
       clear(results, res.results.map(r => h('div', { class: 'result-block' }, resultTable(r))));
-      if (res.results.some(r => /^(CREATE|DROP|ALTER)$/.test(r.command))) refresh({ rerender: false });
+      const schemaChanged = res.results.some(r => /^(CREATE|DROP|ALTER|COMMENT)$/.test(r.command));
+      if (schemaChanged) refresh({ rerender: false });
+      channel?.postMessage({ type: 'ran', connId: ctx.id, db, sql: prefix + sql, schemaChanged });
     } catch (err) {
       clear(results, errorBox(err));
       if (err.position) {

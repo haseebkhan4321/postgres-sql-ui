@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-05
+
+### Added
+- ERD **Query window** button. It opens a separate SQL editor window, and the ER diagram highlights the tables, columns and relations used by the selection or by the statement under the cursor. A banner lists the matched tables and offers Focus and Clear.
+- The ER diagram reloads automatically after a CREATE, ALTER, DROP or COMMENT statement is run from any SQL editor on the same database.
+
+### Changed
+- The ERD export buttons are combined into one **Export ERD** dropdown with draw.io, SVG and PNG options.
+- The ERD tab now comes after Import.
+
 ## [1.0.0] - 2026-10-05
 
 ### Added
@@ -36,5 +46,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Builds a standalone Windows executable with `npm run build:exe`.
 - Shows the version in the UI and serves it at `GET /api/version`.
 
-[Unreleased]: https://github.com/haseebkhan4321/postgres-sql-ui/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/haseebkhan4321/postgres-sql-ui/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/haseebkhan4321/postgres-sql-ui/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/haseebkhan4321/postgres-sql-ui/releases/tag/v1.0.0

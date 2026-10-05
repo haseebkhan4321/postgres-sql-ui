@@ -1,6 +1,6 @@
 import { api, paths } from '../api.js';
 import { h, append, clear, toast } from '../ui.js';
-import { go } from '../app.js';
+import { go, link } from '../app.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const ROW_H = 20;
@@ -237,6 +237,50 @@ function toDrawio(model, title) {
     `<root>${cells.join('')}</root></mxGraphModel></diagram></mxfile>\n`;
 }
 
+// --- query reflection -------------------------------------------------------
+
+// Splits SQL into identifier chains (e.g. public.orders → ['public', 'orders'], o.id → ['o', 'id']).
+// Comments and string literals are dropped; unquoted names fold to lower case like Postgres does.
+function identifierChains(sql) {
+  const clean = sql
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\$(\w*)\$[\s\S]*?\$\1\$/g, ' ')
+    .replace(/'(?:[^']|'')*'/g, ' ');
+  const chains = [];
+  let chain = [];
+  let expectPart = false;
+  const re = /"((?:[^"]|"")+)"|([A-Za-z_][\w$]*)|(\.)|(\S)/g;
+  let m;
+  while ((m = re.exec(clean))) {
+    if (m[1] !== undefined || m[2] !== undefined) {
+      const name = m[1] !== undefined ? m[1].replace(/""/g, '"') : m[2].toLowerCase();
+      if (expectPart) chain.push(name);
+      else { if (chain.length) chains.push(chain); chain = [name]; }
+      expectPart = false;
+    } else if (m[3]) {
+      expectPart = chain.length > 0;
+    } else {
+      if (chain.length) chains.push(chain);
+      chain = [];
+      expectPart = false;
+    }
+  }
+  if (chain.length) chains.push(chain);
+  return chains;
+}
+
+// Which tables (and which of their columns) a query mentions.
+function queryReferences(sql, model) {
+  const chains = identifierChains(sql);
+  const words = new Set(chains.flat());
+  const pairs = new Set(chains.flatMap(c => c.slice(1).map((name, i) => `${c[i]}.${name}`)));
+  const tables = new Set(model.nodes.filter(n => pairs.has(n.id) || words.has(n.table)));
+  const columns = new Map();
+  for (const n of tables) columns.set(n, new Set(n.rows.filter(r => words.has(r.name)).map(r => r.name)));
+  return { tables, columns };
+}
+
 // --- page -------------------------------------------------------------------
 
 export async function render(ctx, el) {
@@ -244,7 +288,8 @@ export async function render(ctx, el) {
   const storageKey = `pa-erd:${ctx.id}/${ctx.db}/${ctx.schema || '*'}`;
   const saved = loadSaved(storageKey);
   const q = ctx.schema ? `?schemas=${encodeURIComponent(ctx.schema)}` : '';
-  const data = await api.get(paths.db(ctx.id, ctx.db) + '/erd' + q);
+  const fetchData = () => api.get(paths.db(ctx.id, ctx.db) + '/erd' + q);
+  let data = await fetchData();
 
   if (!data.tables.length) {
     append(el, h('div', { class: 'card empty' }, 'No tables to diagram here.'));
@@ -266,6 +311,7 @@ export async function render(ctx, el) {
   const zoomLabel = h('span', { class: 'muted small', style: { minWidth: '42px', textAlign: 'right' } });
   const stats = h('span', { class: 'muted' });
   const fsBtn = h('button', { title: 'Fullscreen (Esc to exit)', onclick: () => toggleFullscreen() }, '⛶ Fullscreen');
+  const queryBanner = h('div', { class: 'erd-query-banner', style: { display: 'none' } });
   const wrap = h('div', { class: 'erd-wrap' });
   el.append(wrap);
   append(wrap,
@@ -273,6 +319,7 @@ export async function render(ctx, el) {
       h('h2', { style: { margin: 0 } }, `ER diagram — ${scopeLabel}`),
       stats,
       h('span', { class: 'spacer' }),
+      h('button', { title: 'Open a SQL window; the tables your query uses light up here', onclick: () => openQueryWindow() }, '⧉ Query window'),
       search,
       h('label', { class: 'inline' }, keysBox, 'keys only'),
       h('button', { title: 'Re-arrange all tables', onclick: () => { autoLayout(model.nodes, model.edges); persist(); draw(); fit(); } }, 'Auto layout'),
@@ -281,11 +328,10 @@ export async function render(ctx, el) {
       h('button', { title: 'Zoom in', onclick: () => zoomBy(1.2) }, '+'),
       h('button', { onclick: () => fit() }, 'Fit'),
       fsBtn,
-      h('button', { class: 'primary', onclick: () => exportDrawio() }, '⬇ draw.io'),
-      h('button', { onclick: () => exportSvg() }, '⬇ SVG'),
-      h('button', { onclick: () => exportPng() }, '⬇ PNG')),
+      exportMenu()),
     h('div', { class: 'muted small', style: { marginBottom: '6px' } },
-      'Drag tables to arrange them (positions are remembered) · drag the background to pan · scroll to zoom · double-click a table to open it · hover a table to highlight its relations'));
+      'Drag tables to arrange them (positions are remembered) · drag the background to pan · scroll to zoom · double-click a table to open it · hover a table to highlight its relations'),
+    queryBanner);
 
   const svg = s('svg', { class: 'erd', width: '100%', height: '100%', 'font-family': '"Segoe UI", Roboto, Arial, sans-serif', 'font-size': 12 });
   const host = h('div', { class: 'erd-host' });
@@ -381,7 +427,7 @@ export async function render(ctx, el) {
       n.el = g;
       return g;
     }));
-    applySearch();
+    setQuery(querySql); // nodes were rebuilt: recompute query matches + emphasis
   }
 
   // --- view transform -------------------------------------------------------
@@ -391,8 +437,8 @@ export async function render(ctx, el) {
     zoomLabel.textContent = `${Math.round(view.k * 100)}%`;
   }
 
-  function fit() {
-    const b = bounds(model.nodes);
+  function fit(nodes = model.nodes) {
+    const b = bounds(nodes);
     const W = host.clientWidth || 1000;
     const H = host.clientHeight || 600;
     const k = Math.min(1.2, Math.max(0.1, Math.min((W - 40) / b.w, (H - 40) / b.h)));
@@ -469,32 +515,107 @@ export async function render(ctx, el) {
   function highlight(node) {
     if (node === highlighted) return;
     highlighted = node;
+    styleEdges();
+  }
+
+  // --- emphasis: hover, search and the linked query window ---------------------
+
+  let querySql = '';
+  let queryRefs = null; // { tables: Set<node>, columns: Map<node, Set<name>> } or null
+
+  function styleEdges() {
     const c = colors();
     for (const [e, path] of edgeEls) {
-      const on = node && (e.from === node || e.to === node);
+      let state = 'normal';
+      if (highlighted) state = e.from === highlighted || e.to === highlighted ? 'on' : 'dim';
+      else if (queryRefs) state = queryRefs.tables.has(e.from) && queryRefs.tables.has(e.to) ? 'on' : 'dim';
+      const on = state === 'on';
       path.setAttribute('stroke', on ? c.accent : c.muted);
       path.setAttribute('stroke-width', on ? 2.2 : 1.3);
-      path.setAttribute('opacity', node && !on ? 0.25 : on ? 1 : 0.75);
+      path.setAttribute('opacity', state === 'dim' ? 0.2 : on ? 1 : 0.75);
       path.setAttribute('marker-start', on ? 'url(#erd-many-hi)' : 'url(#erd-many)');
       path.setAttribute('marker-end', on ? 'url(#erd-one-hi)' : 'url(#erd-one)');
       if (on) edgeLayer.append(path);
     }
   }
 
-  // --- search ---------------------------------------------------------------
-
-  function applySearch() {
+  function applyEmphasis() {
     const term = search.value.trim().toLowerCase();
     const c = colors();
     for (const n of model.nodes) {
       const frame = n.el.querySelector('.erd-frame');
-      const hit = term && n.id.toLowerCase().includes(term);
-      frame.setAttribute('stroke', hit ? c.danger : c.border);
-      frame.setAttribute('stroke-width', hit ? 3 : 1);
-      n.el.setAttribute('opacity', term && !hit ? 0.35 : 1);
+      n.el.querySelectorAll('.erd-qrow').forEach(r => r.remove());
+      const searchHit = term && n.id.toLowerCase().includes(term);
+      const queryHit = queryRefs?.tables.has(n);
+      frame.setAttribute('stroke', searchHit ? c.danger : queryHit ? c.accent : c.border);
+      frame.setAttribute('stroke-width', searchHit || queryHit ? 3 : 1);
+      const dim = (term && !searchHit) || (queryRefs && !queryHit && !searchHit);
+      n.el.setAttribute('opacity', dim ? 0.3 : 1);
+      if (queryHit) {
+        const cols = queryRefs.columns.get(n);
+        n.rows.forEach((r, i) => {
+          if (!cols.has(r.name)) return;
+          const y = HEAD_H + i * ROW_H;
+          n.el.append(
+            s('rect', { class: 'erd-qrow', x: 1, y, width: n.w - 2, height: ROW_H, fill: c.accent, opacity: 0.18, 'pointer-events': 'none' }),
+            s('rect', { class: 'erd-qrow', x: 1, y, width: 3, height: ROW_H, fill: c.accent, 'pointer-events': 'none' }));
+        });
+      }
     }
+    styleEdges();
   }
-  search.addEventListener('input', applySearch);
+  search.addEventListener('input', applyEmphasis);
+
+  function setQuery(sql) {
+    querySql = sql || '';
+    queryRefs = querySql.trim() ? queryReferences(querySql, model) : null;
+    if (queryRefs && !queryRefs.tables.size) queryRefs = null;
+    if (!queryRefs) {
+      queryBanner.style.display = querySql.trim() ? '' : 'none';
+      clear(queryBanner, h('span', { class: 'muted' }, 'Query window linked — no tables from this diagram in the current query yet.'));
+    } else {
+      const names = [...queryRefs.tables].map(n => n.title);
+      const colCount = [...queryRefs.columns.values()].reduce((a, s2) => a + s2.size, 0);
+      queryBanner.style.display = '';
+      clear(queryBanner,
+        h('strong', null, `Query uses ${names.length} table${names.length === 1 ? '' : 's'}`),
+        h('span', { class: 'muted' }, ` (${colCount} column${colCount === 1 ? '' : 's'}): `),
+        h('span', { class: 'mono' }, names.join(', ')),
+        h('span', { class: 'spacer' }),
+        h('button', { onclick: () => fit([...queryRefs.tables]) }, 'Focus'),
+        h('button', { onclick: () => setQuery('') }, 'Clear'));
+    }
+    applyEmphasis();
+  }
+
+  function openQueryWindow() {
+    const url = `${location.pathname}${link({ id: ctx.id, db: ctx.db, schema: ctx.schema, tab: 'sql' })}&popup=1`;
+    const win = window.open(url, `pa-query-${ctx.id}-${ctx.db}`, 'width=1000,height=720');
+    if (!win) return toast('Popup blocked — allow popups for this site', 'error');
+    win.focus();
+  }
+
+  // Messages from any SQL editor on the same connection + database (BroadcastChannel spans windows).
+  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('postadmin-sql') : null;
+  if (channel) {
+    channel.onmessage = async ({ data: m }) => {
+      if (!wrap.isConnected) { channel.close(); return; }
+      if (m.connId !== ctx.id || m.db !== ctx.db) return;
+      if (m.type === 'sql') setQuery(m.sql);
+      if (m.type === 'ran' && m.schemaChanged) {
+        try {
+          persist();
+          data = await fetchData();
+          rebuild();
+          draw();
+          toast('Schema changed — diagram updated');
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+      }
+    };
+    channel.postMessage({ type: 'erd-ready', connId: ctx.id, db: ctx.db });
+  }
   search.addEventListener('keydown', ev => {
     if (ev.key !== 'Enter') return;
     const term = search.value.trim().toLowerCase();
@@ -531,6 +652,32 @@ export async function render(ctx, el) {
   // --- exports --------------------------------------------------------------
 
   const fileBase = `erd-${scopeLabel.replace(/[^\w.-]+/g, '_')}`;
+
+  function exportMenu() {
+    const items = [
+      ['draw.io (.drawio)', 'Editable in diagrams.net / draw.io', () => exportDrawio()],
+      ['SVG image', 'Vector, sharp at any zoom', () => exportSvg()],
+      ['PNG image', 'Raster, 2× resolution', () => exportPng()],
+    ];
+    const menu = h('div', { class: 'dropdown-menu' }, items.map(([label, hint, action]) =>
+      h('button', { class: 'dropdown-item', onclick: () => { close(); action(); } },
+        h('span', null, label), h('span', { class: 'muted small' }, hint))));
+    const btn = h('button', { class: 'primary', 'aria-haspopup': 'menu', onclick: ev => { ev.stopPropagation(); menu.classList.contains('open') ? close() : open(); } }, '⬇ Export ERD ▾');
+    const onDoc = ev => { if (!root.contains(ev.target)) close(); };
+    const onKey = ev => { if (ev.key === 'Escape') close(); };
+    function open() {
+      menu.classList.add('open');
+      document.addEventListener('pointerdown', onDoc);
+      document.addEventListener('keydown', onKey);
+    }
+    function close() {
+      menu.classList.remove('open');
+      document.removeEventListener('pointerdown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    }
+    const root = h('div', { class: 'dropdown' }, btn, menu);
+    return root;
+  }
 
   function exportDrawio() {
     saveBlob(`${fileBase}.drawio`, new Blob([toDrawio(model, scopeLabel)], { type: 'application/xml' }));
