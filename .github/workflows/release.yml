@@ -1,8 +1,10 @@
 name: Release
 
-# Runs when a version tag is pushed (npm run release:patch|minor|major pushes one).
+# Publishes a GitHub Release whenever master carries a package.json version that has no vX.Y.Z tag yet
+# (so pushing from GitHub Desktop, which doesn't push tags, still releases), or when a version tag is pushed.
 on:
   push:
+    branches: [master]
     tags: ['v*']
   workflow_dispatch:
 
@@ -10,8 +12,33 @@ permissions:
   contents: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        shell: bash
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$ver" > /dev/null; then
+            echo "v$ver is already released; nothing to do."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   windows:
+    needs: check
+    if: needs.check.outputs.release == 'true'
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,25 +61,16 @@ jobs:
       - name: Collect release notes from CHANGELOG.md
         shell: bash
         run: |
-          ver="${GITHUB_REF_NAME#v}"
-          awk -v v="$ver" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
-          [ -s notes.md ] || echo "PostAdmin $GITHUB_REF_NAME" > notes.md
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "PostAdmin v$VERSION" > notes.md
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: PostAdmin ${{ github.ref_name }}
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: PostAdmin v${{ env.VERSION }}
           body_path: notes.md
           files: |
-            dist/PostAdmin-Setup-*.exe
-            dist/postadmin.exe
-
-      - name: Upload build (manual runs)
-        if: "!startsWith(github.ref, 'refs/tags/v')"
-        uses: actions/upload-artifact@v4
-        with:
-          name: postadmin-windows
-          path: |
             dist/PostAdmin-Setup-*.exe
             dist/postadmin.exe

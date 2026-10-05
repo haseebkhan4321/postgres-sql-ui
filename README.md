@@ -89,7 +89,7 @@ npm run release:major   # breaking changes          1.0.0 -> 2.0.0
 
 Each command updates `package.json`, commits, creates a `vX.Y.Z` git tag, and pushes the commit and the tag.
 
-When the tag is pushed, the [Release workflow](.github/workflows/release.yml) runs on GitHub Actions. It builds `postadmin.exe` and `PostAdmin-Setup-X.Y.Z.exe` on Windows and publishes a GitHub Release with both files attached. The release notes come from that version's section in the changelog. You can watch the build in the repository's **Actions** tab.
+After every push to `master`, the [Release workflow](.github/workflows/release.yml) checks the version in `package.json`. If GitHub has no `vX.Y.Z` tag for it yet, the workflow builds `postadmin.exe` and `PostAdmin-Setup-X.Y.Z.exe` on Windows, then publishes a GitHub Release with both files attached and creates the tag. The release notes come from that version's section in the changelog. Tags don't have to be pushed, so pushing from GitHub Desktop works. If the push step of a `release:*` script fails, push the commit with Desktop instead. You can watch the build in the repository's **Actions** tab.
 
 ## Building the installer locally
 
