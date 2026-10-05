@@ -1,6 +1,6 @@
 {
   "name": "postadmin",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Local phpMyAdmin-style manager for PostgreSQL",
   "main": "src/server.js",
   "bin": "src/server.js",
